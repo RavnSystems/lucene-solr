@@ -710,11 +710,16 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
     
     log.info("There may be a better leader candidate than us - going back into recovery");
     
-    cancelElection();
-    
-    core.getUpdateHandler().getSolrCoreState().doRecovery(cc, core.getCoreDescriptor());
-    
-    leaderElector.joinElection(this, true);
+    try {
+        cancelElection();
+        core.getUpdateHandler().getSolrCoreState().doRecovery(cc, core.getCoreDescriptor());
+        leaderElector.joinElection(this, true);
+    }
+    catch(Exception e){
+        log.info("Something failed while rejoining leader election. But we don't mind, we will continue registering. Then rethrow the exception", e);
+        leaderElector.joinElection(this, true);
+        throw e;
+    }
   }
 
   private boolean shouldIBeLeader(ZkNodeProps leaderProps, SolrCore core, boolean weAreReplacement) {

@@ -280,6 +280,16 @@ class RebalanceLeaders {
       log.info("Waited long enough. Couldn't find updated node");
       return -1;
   }
+
+  private byte[] readData(String nodePath){
+    try {
+      final SolrZkClient zkClient = coreContainer.getZkController().getZkClient();
+      return zkClient.getData(nodePath, null, null, false);
+    }catch (Exception e){
+      log.warn("Unable to read data from node "+ nodePath, e);
+      return null;
+    }
+  }
   
   private void rejoinElection(String collectionName, Slice slice, String electionNode, String core,
                               boolean rejoinAtHead) throws KeeperException, InterruptedException {

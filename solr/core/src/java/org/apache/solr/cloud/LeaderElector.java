@@ -234,7 +234,7 @@ public  class LeaderElector {
   public int joinElection(ElectionContext context, boolean replacement, boolean joinAtHead) throws KeeperException, InterruptedException, IOException {
     context.joinedElectionFired();
     final String shardsElectZkPath = context.electionPath + LeaderElector.ELECTION_NODE;
-    
+
     long sessionId = zkClient.getSolrZooKeeper().getSessionId();
     String id = sessionId + "-" + context.id;
     String leaderSeqPath = null;

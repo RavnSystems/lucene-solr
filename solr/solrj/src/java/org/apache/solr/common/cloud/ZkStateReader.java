@@ -16,30 +16,6 @@
  */
 package org.apache.solr.common.cloud;
 
-import java.io.Closeable;
-import java.io.UnsupportedEncodingException;
-import java.lang.invoke.MethodHandles;
-import java.net.URLDecoder;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.solr.common.Callable;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
@@ -55,11 +31,18 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
+import java.io.UnsupportedEncodingException;
+import java.lang.invoke.MethodHandles;
+import java.net.URLDecoder;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static java.util.Arrays.asList;
-import static java.util.Collections.EMPTY_MAP;
-import static java.util.Collections.emptyMap;
-import static java.util.Collections.emptySet;
-import static java.util.Collections.unmodifiableSet;
+import static java.util.Collections.*;
 import static org.apache.solr.common.util.Utils.fromJSON;
 
 public class ZkStateReader implements Closeable {
@@ -90,6 +73,7 @@ public class ZkStateReader implements Closeable {
   public static final String CLUSTER_STATE = "/clusterstate.json";
   public static final String CLUSTER_PROPS = "/clusterprops.json";
   public static final String REJOIN_AT_HEAD_PROP = "rejoinAtHead";
+  public static final String REJOIN_ELECTION_ID_PROP = "rejoinElectionId";
   public static final String SOLR_SECURITY_CONF_PATH = "/security.json";
 
   public static final String REPLICATION_FACTOR = "replicationFactor";
@@ -767,6 +751,21 @@ public class ZkStateReader implements Closeable {
         + LEADER_ELECT_ZKNODE  + (shardId != null ? ("/" + shardId + "/" + ELECTION_NODE)
         : "");
   }
+
+  /**
+   * Get path where shard leader elections ephemeral nodes are.
+   */
+  public static String getShardLeadersElectNode(String collection, String shardId, String nodeId) {
+    return getShardLeadersElectPath(collection, shardId) + "/" + nodeId;
+  }
+
+  /**
+   * Get path where shard leader elections ephemeral nodes are.
+   */
+  public static String getShardLeadersElectNode(String shardLeaderElectPath, String nodeId) {
+    return shardLeaderElectPath + "/" + nodeId;
+  }
+
 
 
   public List<org.apache.solr.common.cloud.ZkCoreNodeProps> getReplicaProps(String collection, String shardId, String thisCoreNodeName) {

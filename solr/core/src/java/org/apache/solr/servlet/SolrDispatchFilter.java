@@ -61,8 +61,10 @@ import io.opentracing.tag.Tags;
 import org.apache.commons.io.FileCleaningTracker;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.HttpClient;
+import org.apache.lucene.util.Constants;
 import org.apache.lucene.util.Version;
 import org.apache.solr.api.V2HttpCall;
+import org.apache.solr.bootstrap.Natives;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.SolrZkClient;
@@ -184,8 +186,8 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       this.httpClient = coresInit.getUpdateShardHandler().getDefaultHttpClient();
       setupJvmMetrics(coresInit);
       log.debug("user.dir=" + System.getProperty("user.dir"));
-    }
-    catch( Throwable t ) {
+      setupMemoryLock();
+    } catch( Throwable t ) {
       // catch this so our filter still works
       log.error( "Could not start Solr. Check solr/home property and the logs");
       SolrCore.log( t );
@@ -198,6 +200,26 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       log.trace("SolrDispatchFilter.init() done");
       this.cores = coresInit; // crucially final assignment 
       init.countDown();
+    }
+  }
+
+  /**
+   * Locks memory allocation to physical memory so it doesn't swap
+   */
+  private void setupMemoryLock() {
+    log.info("Setting Memory Lock");
+    final boolean mlockAll = Boolean.parseBoolean(System.getProperty("mlockall", "false"));
+    if(mlockAll) {
+      if (Constants.WINDOWS) {
+        log.info("Enabling Windows Virtual lock");
+        Natives.tryVirtualLock();
+      } else {
+        log.info("Enabling Linux Virtual lock");
+        Natives.tryMlockall();
+      }
+    }
+    else{
+      log.info("Memory lock not enabled. Consider enabling it");
     }
   }
 

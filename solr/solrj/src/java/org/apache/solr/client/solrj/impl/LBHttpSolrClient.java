@@ -361,30 +361,37 @@ public class LBHttpSolrClient extends SolrClient {
     long timeOutTime = System.nanoTime() + timeAllowedNano;
 
     //query in parallel
-    Optional<ResponseAndException> aliveResponseAndException = req.getServers().parallelStream().map(serverStr ->{
-      serverStr = normalize(serverStr);
+    Optional<ResponseAndException> aliveResponseAndException = req.getServers().parallelStream()
+        .map(serverStr ->{
+          serverStr = normalize(serverStr);
 
-      // if the server is currently a zombie, just skip to the next one
-      ServerWrapper wrapper = zombieServers.get(serverStr);
-      if (wrapper != null) {
-        //only add to retry list if the number of dead servers to retry list hasn't been filled yet
-        if (skipped.size() < numDeadServersToTry) {
-          skipped.add(wrapper);
-        }
-        return null;
-      }
-      else{
-        return getResponseAndException(req, isNonRetryable, true, serverStr, makeSolrClient(serverStr));
-      }
-    }).findAny();
+          // if the server is currently a zombie, just skip to the next one
+          ServerWrapper wrapper = zombieServers.get(serverStr);
+          if (wrapper != null) {
+            //only add to retry list if the number of dead servers to retry list hasn't been filled yet
+            if (skipped.size() < numDeadServersToTry) {
+              skipped.add(wrapper);
+            }
+            return null;
+          }
+          else{
+            return getResponseAndException(req, isNonRetryable, true, serverStr, makeSolrClient(serverStr));
+          }
+        })
+        .filter(r -> null != r)
+        .filter(r -> null == r.getEx())
+        .findAny();
 
     if(aliveResponseAndException.isPresent()){
       return aliveResponseAndException.get();
     }
     else{
-      Optional<ResponseAndException> deadResponseAndException = skipped.parallelStream().map(wrapper -> {
-        return getResponseAndException(req, isNonRetryable, true, wrapper.getKey(), wrapper.client);
-      }).findAny();
+      Optional<ResponseAndException> deadResponseAndException = skipped.parallelStream()
+        .map(wrapper -> {
+          return getResponseAndException(req, isNonRetryable, true, wrapper.getKey(), wrapper.client);
+        })
+          .filter(r -> null == r.getEx())
+          .findAny();
 
       if(deadResponseAndException.isPresent()){
         return deadResponseAndException.get();

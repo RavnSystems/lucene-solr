@@ -348,17 +348,12 @@ public class LBHttpSolrClient extends SolrClient {
    * @param req contains both the request as well as the list of servers to query
    *
    * @return the result of the request
-   *
-   * @throws IOException If there is a low-level I/O error.
    */
-  public ResponseAndException request(Req req) throws SolrServerException, IOException {
+  public ResponseAndException request(Req req) throws SolrServerException {
     boolean isNonRetryable = req.request instanceof IsUpdateRequest || ADMIN_PATHS.contains(req.request.getPath());
     final int numDeadServersToTry = req.getNumDeadServersToTry();
     List<ServerWrapper> skipped = new ArrayList<>(numDeadServersToTry);
 
-    boolean timeAllowedExceeded = false;
-    long timeAllowedNano = getTimeAllowedInNanos(req.getRequest());
-    long timeOutTime = System.nanoTime() + timeAllowedNano;
 
     //query in parallel
     Optional<ResponseAndException> aliveResponseAndException = req.getServers().parallelStream()
@@ -398,19 +393,16 @@ public class LBHttpSolrClient extends SolrClient {
       }
     }
 
-    final String solrServerExceptionMessage;
-    if (timeAllowedExceeded) {
-      solrServerExceptionMessage = "Time allowed to handle this request exceeded";
-    } else {
-      solrServerExceptionMessage = "No live SolrServers available to handle this request";
-    }
-
-
-    throw new SolrServerException(solrServerExceptionMessage+":" + zombieServers.keySet());
+    throw new SolrServerException("No live SolrServers available to handle this request: " + zombieServers.keySet());
 
   }
 
-  private ResponseAndException getResponseAndException(Req req, boolean isNonRetryable, boolean isZombie, String serverStr, HttpSolrClient client) {
+  private ResponseAndException getResponseAndException(Req req
+      , boolean isNonRetryable
+      , boolean isZombie
+      , String serverStr
+      , HttpSolrClient client) {
+
     try {
       MDC.put("LBHttpSolrClient.url", serverStr);
       Rsp rsp = new Rsp();

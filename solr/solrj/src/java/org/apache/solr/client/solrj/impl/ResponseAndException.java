@@ -16,7 +16,8 @@ public class ResponseAndException {
   }
 
 
-  public void setEx(Exception ex) {
-    this.ex = ex;
+  public Exception getEx() {
+    return ex;
   }
+
 }

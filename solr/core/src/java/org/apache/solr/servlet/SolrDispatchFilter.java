@@ -16,35 +16,14 @@
  */
 package org.apache.solr.servlet;
 
-import com.codahale.metrics.jvm.ClassLoadingGaugeSet;
-import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
-import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
-import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
-import org.apache.commons.io.FileCleaningTracker;
-import org.apache.commons.io.input.CloseShieldInputStream;
-import org.apache.commons.io.output.CloseShieldOutputStream;
-import org.apache.commons.lang.StringUtils;
-import org.apache.http.client.HttpClient;
-import org.apache.lucene.util.Constants;
-import org.apache.lucene.util.Version;
-import org.apache.solr.api.V2HttpCall;
-import org.apache.solr.bootstrap.Natives;
-import org.apache.solr.common.SolrException;
-import org.apache.solr.common.SolrException.ErrorCode;
-import org.apache.solr.common.cloud.SolrZkClient;
-import org.apache.solr.common.util.ExecutorUtil;
-import org.apache.solr.core.*;
-import org.apache.solr.metrics.AltBufferPoolMetricSet;
-import org.apache.solr.metrics.OperatingSystemMetricSet;
-import org.apache.solr.metrics.SolrMetricManager;
-import org.apache.solr.request.SolrRequestInfo;
-import org.apache.solr.security.AuthenticationPlugin;
-import org.apache.solr.security.PKIAuthenticationPlugin;
-import org.apache.solr.util.SolrFileCleaningTracker;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.servlet.*;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.UnavailableException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
@@ -66,6 +45,39 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.codahale.metrics.jvm.ClassLoadingGaugeSet;
+import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
+import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
+import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
+import org.apache.commons.io.FileCleaningTracker;
+import org.apache.commons.io.input.CloseShieldInputStream;
+import org.apache.commons.io.output.CloseShieldOutputStream;
+import org.apache.commons.lang.StringUtils;
+import org.apache.http.client.HttpClient;
+import org.apache.lucene.util.Constants;
+import org.apache.lucene.util.Version;
+import org.apache.solr.api.V2HttpCall;
+import org.apache.solr.bootstrap.Natives;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.cloud.SolrZkClient;
+import org.apache.solr.common.util.ExecutorUtil;
+import org.apache.solr.core.CoreContainer;
+import org.apache.solr.core.NodeConfig;
+import org.apache.solr.core.SolrCore;
+import org.apache.solr.core.SolrInfoMBean;
+import org.apache.solr.core.SolrResourceLoader;
+import org.apache.solr.core.SolrXmlConfig;
+import org.apache.solr.metrics.AltBufferPoolMetricSet;
+import org.apache.solr.metrics.OperatingSystemMetricSet;
+import org.apache.solr.metrics.SolrMetricManager;
+import org.apache.solr.request.SolrRequestInfo;
+import org.apache.solr.security.AuthenticationPlugin;
+import org.apache.solr.security.PKIAuthenticationPlugin;
+import org.apache.solr.util.SolrFileCleaningTracker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This filter looks at the incoming URL maps them to handlers defined in solrconfig.xml
@@ -164,6 +176,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       setupJvmMetrics(coresInit);
       log.debug("user.dir=" + System.getProperty("user.dir"));
       setupMemoryLock();
+      setupCpuAffinity();
 
     }
     catch( Throwable t ) {
@@ -199,6 +212,15 @@ public class SolrDispatchFilter extends BaseSolrFilter {
     }
     else{
       log.info("Memory lock not enabled. Consider enabling it");
+    }
+  }
+
+  private void setupCpuAffinity(){
+    final String cpusProperty = System.getProperty("cpuAffinity");
+    if(cpusProperty!=null && Constants.WINDOWS){
+      log.info("Setting cpu affinity");
+      final int[] cpus = Arrays.stream(cpusProperty.split(",")).mapToInt(Integer::parseInt).toArray();
+      Natives.cpuAffinity(cpus);
     }
   }
 

@@ -19,16 +19,21 @@
 
 package org.apache.solr.bootstrap;
 
-import com.sun.jna.*;
-import com.sun.jna.win32.StdCallLibrary;
-import org.apache.lucene.util.Constants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
+import com.sun.jna.IntegerType;
+import com.sun.jna.Native;
+import com.sun.jna.NativeLong;
+import com.sun.jna.Pointer;
+import com.sun.jna.Structure;
+import com.sun.jna.WString;
+import com.sun.jna.win32.StdCallLibrary;
+import org.apache.lucene.util.Constants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -62,6 +67,10 @@ final class JNAKernel32Library {
 
     static JNAKernel32Library getInstance() {
         return Holder.instance;
+    }
+
+    static int getLastError(){
+        return Native.getLastError();
     }
 
     /**
@@ -199,6 +208,15 @@ final class JNAKernel32Library {
      * @return true if the function succeeds.
      */
     native boolean SetProcessWorkingSetSize(Pointer handle, SizeT minSize, SizeT maxSize);
+
+    /**
+     *
+     * @param hProcess A handle to the process whose affinity mask is to be set
+     * @param dwProcessAffinityMask The affinity mask for the threads of the process.
+     * On a system with more than 64 processors, the affinity mask must specify processors in a single processor group
+     * @return true if the function succeeds
+     */
+    native int SetProcessAffinityMask(Pointer hProcess, int dwProcessAffinityMask);
 
     /**
      * Retrieves a pseudo handle for the current process.

@@ -20,10 +20,10 @@
 package org.apache.solr.bootstrap;
 
 
+import java.lang.invoke.MethodHandles;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.invoke.MethodHandles;
 
 /**
  * The Natives class is a wrapper class that checks if the classes necessary for calling native methods are available on
@@ -75,6 +75,14 @@ public final class Natives {
             return;
         }
         JNANatives.tryVirtualLock();
+    }
+
+    public static void cpuAffinity(int[] cpus){
+      if (!JNA_AVAILABLE) {
+        logger.warn("cannot set cpu affinity JNA is not available");
+        return;
+      }
+      JNANatives.tryCpuAffinity(cpus);
     }
 
     /**

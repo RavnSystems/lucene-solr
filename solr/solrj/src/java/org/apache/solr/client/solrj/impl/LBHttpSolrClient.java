@@ -394,6 +394,7 @@ public class LBHttpSolrClient extends SolrClient {
         .map(wrapper -> {
           return  getResponseAndException(req, isNonRetryable, true, wrapper.getKey(), wrapper.client);
         })
+          .filter(r -> null != r)
           .filter(r -> null == r.getEx())
           .findAny();
 

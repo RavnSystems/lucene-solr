@@ -52,6 +52,8 @@ import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SolrjNamedThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import static org.apache.solr.common.params.CommonParams.ADMIN_PATHS;
@@ -94,6 +96,9 @@ import static org.apache.solr.common.params.CommonParams.ADMIN_PATHS;
  * @since solr 1.4
  */
 public class LBHttpSolrClient extends SolrClient {
+
+  private static final Logger log = LoggerFactory.getLogger(LBHttpSolrClient.class);
+
   private static Set<Integer> RETRY_CODES = new HashSet<>(4);
 
   static {
@@ -348,17 +353,15 @@ public class LBHttpSolrClient extends SolrClient {
    * @param req contains both the request as well as the list of servers to query
    *
    * @return the result of the request
-   *
-   * @throws IOException If there is a low-level I/O error.
    */
-  public ResponseAndException request(Req req) throws SolrServerException, IOException {
+  public ResponseAndException request(Req req) throws SolrServerException {
+
     boolean isNonRetryable = req.request instanceof IsUpdateRequest || ADMIN_PATHS.contains(req.request.getPath());
+
     final int numDeadServersToTry = req.getNumDeadServersToTry();
     List<ServerWrapper> skipped = new ArrayList<>(numDeadServersToTry);
 
-    boolean timeAllowedExceeded = false;
-    long timeAllowedNano = getTimeAllowedInNanos(req.getRequest());
-    long timeOutTime = System.nanoTime() + timeAllowedNano;
+
 
     //query in parallel
     Optional<ResponseAndException> aliveResponseAndException = req.getServers().parallelStream()
@@ -382,14 +385,16 @@ public class LBHttpSolrClient extends SolrClient {
         .filter(r -> null == r.getEx())
         .findAny();
 
+
     if(aliveResponseAndException.isPresent()){
       return aliveResponseAndException.get();
     }
     else{
       Optional<ResponseAndException> deadResponseAndException = skipped.parallelStream()
         .map(wrapper -> {
-          return getResponseAndException(req, isNonRetryable, true, wrapper.getKey(), wrapper.client);
+          return  getResponseAndException(req, isNonRetryable, true, wrapper.getKey(), wrapper.client);
         })
+          .filter(r -> null != r)
           .filter(r -> null == r.getEx())
           .findAny();
 
@@ -398,29 +403,27 @@ public class LBHttpSolrClient extends SolrClient {
       }
     }
 
-    final String solrServerExceptionMessage;
-    if (timeAllowedExceeded) {
-      solrServerExceptionMessage = "Time allowed to handle this request exceeded";
-    } else {
-      solrServerExceptionMessage = "No live SolrServers available to handle this request";
-    }
-
-
-    throw new SolrServerException(solrServerExceptionMessage+":" + zombieServers.keySet());
+    throw new SolrServerException("Failed to handle request. Zombie servers: " + zombieServers.keySet());
 
   }
 
-  private ResponseAndException getResponseAndException(Req req, boolean isNonRetryable, boolean isZombie, String serverStr, HttpSolrClient client) {
+  private ResponseAndException getResponseAndException(Req req
+      , boolean isNonRetryable
+      , boolean isZombie
+      , String serverStr
+      , HttpSolrClient client) {
+
     try {
       MDC.put("LBHttpSolrClient.url", serverStr);
       Rsp rsp = new Rsp();
       return new ResponseAndException(rsp, doRequest(client, req, rsp, isNonRetryable, isZombie, null));
     } catch(IOException | SolrServerException e){
-      throw new RuntimeException(e);
+      log.error("Request failed: " + serverStr, e);
     }
     finally {
       MDC.remove("LBHttpSolrClient.url");
     }
+    return null;
   }
 
   protected Exception addZombie(HttpSolrClient server, Exception e) {
@@ -434,9 +437,15 @@ public class LBHttpSolrClient extends SolrClient {
     return e;
   }  
 
-  protected Exception doRequest(HttpSolrClient client, Req req, Rsp rsp, boolean isNonRetryable,
-      boolean isZombie, String zombieKey) throws SolrServerException, IOException {
+  protected Exception doRequest(HttpSolrClient client
+      , Req req
+      , Rsp rsp
+      , boolean isNonRetryable
+      , boolean isZombie
+      , String zombieKey) throws SolrServerException, IOException {
+
     Exception ex = null;
+
     try {
       rsp.server = client.getBaseURL();
       rsp.rsp = client.request(req.getRequest(), (String) null);

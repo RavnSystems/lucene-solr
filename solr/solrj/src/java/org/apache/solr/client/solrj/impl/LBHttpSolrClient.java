@@ -17,7 +17,6 @@
 package org.apache.solr.client.solrj.impl;
 
 import java.io.IOException;
-import java.lang.invoke.MethodHandles;
 import java.lang.ref.WeakReference;
 import java.net.ConnectException;
 import java.net.MalformedURLException;
@@ -28,7 +27,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

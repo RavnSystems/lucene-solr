@@ -19,16 +19,16 @@
 
 package org.apache.solr.bootstrap;
 
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.WString;
 import org.apache.lucene.util.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.List;
 
 
 /**
@@ -226,6 +226,25 @@ class JNANatives {
         } finally {
             if (process != null) {
                 kernel.CloseHandle(process);
+            }
+        }
+    }
+
+
+    static void tryCpuAffinity(int[] cpus){
+        if(Constants.WINDOWS) {
+            try {
+                final int mask = BitwiseOperations.createMask(cpus);
+                final long pid = JvmPid.getPid();
+                logger.info("Setting affinity mask for {} to {}", pid, mask);
+                final int i = JNAKernel32Library.getInstance().SetProcessAffinityMask(JNAKernel32Library.getInstance().GetCurrentProcess(), mask);
+                if(i==0){
+                    logger.warn("Setting affinity failed with error code {}", JNAKernel32Library.getLastError());
+                }
+                logger.info("setting affinity returned {}", i);
+            }
+            catch(Exception e){
+                logger.warn("Unable to set cpu affinity", e);
             }
         }
     }

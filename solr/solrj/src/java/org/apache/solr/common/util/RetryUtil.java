@@ -60,6 +60,19 @@ public class RetryUtil {
     }
   }
 
+  /**
+   * A method that will retry to get the result of a callable.
+   * When it's not successful, it will check if the exception belongs to the accepted exceptions.
+   * In case it is and it stays within the timeout, the callable will be retried after the interval.
+   * Otherwise, it will throw the exception.
+   *
+   * @param retryOnExceptions If the callable throws any of this exceptions then it will be retried
+   * @param timeoutms max time after which it will stop retrying and throw the last exception instead
+   * @param intervalms how often to retry
+   * @param callable the task to be executed until successful
+   * @return the result of callable when successful within timeoutms. The callable fail cause otherwise
+   * @throws Exception The cause of the callable to fail
+   */
   public static <T> T retry(Set<Class> retryOnExceptions, long timeoutms, long intervalms, Callable<T> callable) throws Exception {
     long timeout = System.nanoTime() + TimeUnit.NANOSECONDS.convert(timeoutms, TimeUnit.MILLISECONDS);
     while (true) {

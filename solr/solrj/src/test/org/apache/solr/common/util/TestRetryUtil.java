@@ -16,6 +16,7 @@
  */
 package org.apache.solr.common.util;
 
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.solr.SolrTestCaseJ4;
@@ -68,4 +69,64 @@ public class TestRetryUtil extends SolrTestCaseJ4 {
     assertTrue(executes3.get() > 1);
   }
 
-}
+
+
+  public void testRetry() throws Throwable {
+    final AtomicInteger executes = new AtomicInteger();
+    RetryUtil.retry(Collections.singleton(SolrException.class), 10000, 10, () -> {
+      int calls = executes.incrementAndGet();
+      if (calls <= 2) {
+        throw new SolrException(ErrorCode.SERVER_ERROR, "Bad Stuff Happened");
+      }
+      return null;
+    });
+
+    assertEquals(3, executes.get());
+
+    final AtomicInteger executes2 = new AtomicInteger();
+    boolean caughtSolrException = false;
+    try {
+      RetryUtil.retry(Collections.singleton(IllegalStateException.class), 10000, 10,
+          () -> {
+            int calls = executes2.incrementAndGet();
+            if (calls <= 2) {
+              throw new SolrException(ErrorCode.SERVER_ERROR,
+                  "Bad Stuff Happened");
+            }
+            return null;
+          });
+    } catch (SolrException e) {
+      caughtSolrException = true;
+    }
+    assertTrue(caughtSolrException);
+    assertEquals(1, executes2.get());
+
+    final AtomicInteger executes3 = new AtomicInteger();
+    caughtSolrException = false;
+    try {
+      RetryUtil.retry(Collections.singleton(SolrException.class), 1000, 10, () -> {
+        executes3.incrementAndGet();
+        throw new SolrException(ErrorCode.SERVER_ERROR, "Bad Stuff Happened");
+      });
+    } catch (SolrException e) {
+      caughtSolrException = true;
+    }
+
+    assertTrue(caughtSolrException);
+    assertTrue(executes3.get() > 1);
+
+    //if successful
+    final AtomicInteger execute4 = new AtomicInteger();
+    boolean succeeded = false;
+    try {
+        succeeded = RetryUtil.retry(Collections.singleton(SolrException.class), 1000, 10, () -> {
+          final int value = execute4.incrementAndGet();
+          if (value < 2) throw new SolrException(ErrorCode.SERVER_ERROR, "Bad Stuff Happened");
+          else return true;
+        });
+      } catch (SolrException ignored) {
+      }
+
+      assertTrue(succeeded);
+    }
+  }

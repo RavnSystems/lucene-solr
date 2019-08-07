@@ -19,6 +19,7 @@ package org.apache.solr.common.util;
 import java.lang.invoke.MethodHandles;
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.solr.common.SolrException;
@@ -56,6 +57,23 @@ public class RetryUtil {
       }
       // success
       break;
+    }
+  }
+
+  public static <T> T retry(Set<Class> retryOnExceptions, long timeoutms, long intervalms, Callable<T> callable) throws Exception {
+    long timeout = System.nanoTime() + TimeUnit.NANOSECONDS.convert(timeoutms, TimeUnit.MILLISECONDS);
+    while (true) {
+      try {
+        return callable.call();
+      } catch (Exception e) {
+        if (isInstanceOf(retryOnExceptions, e) && System.nanoTime() < timeout) {
+          log.warn("Retry due to Throwable", e);
+          Thread.sleep(intervalms);
+        }
+        else{
+          throw e;
+        }
+      }
     }
   }
   

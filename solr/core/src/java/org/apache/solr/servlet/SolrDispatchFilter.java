@@ -16,6 +16,38 @@
  */
 package org.apache.solr.servlet;
 
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.UnavailableException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponseWrapper;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import com.codahale.metrics.jvm.ClassLoadingGaugeSet;
 import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
@@ -33,7 +65,13 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.util.ExecutorUtil;
-import org.apache.solr.core.*;
+import org.apache.solr.common.util.RetryUtil;
+import org.apache.solr.core.CoreContainer;
+import org.apache.solr.core.NodeConfig;
+import org.apache.solr.core.SolrCore;
+import org.apache.solr.core.SolrInfoMBean;
+import org.apache.solr.core.SolrResourceLoader;
+import org.apache.solr.core.SolrXmlConfig;
 import org.apache.solr.metrics.AltBufferPoolMetricSet;
 import org.apache.solr.metrics.OperatingSystemMetricSet;
 import org.apache.solr.metrics.SolrMetricManager;
@@ -44,29 +82,6 @@ import org.apache.solr.util.SolrFileCleaningTracker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.*;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpServletResponseWrapper;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 /**
  * This filter looks at the incoming URL maps them to handlers defined in solrconfig.xml
  *
@@ -74,6 +89,8 @@ import java.util.regex.Pattern;
  */
 public class SolrDispatchFilter extends BaseSolrFilter {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  public static final long DEFAULT_ZK_RETRY_TIMEOUT = 24 * 60 * 60 * 1000L;
+  public static final long DEFAULT_ZK_RETRY_PERIOD = 30 * 1000L;
 
   protected volatile CoreContainer cores;
   protected final CountDownLatch init = new CountDownLatch(1);
@@ -245,11 +262,18 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   }
 
   /**
+   * Will try to read config from zookeeper until it times out
    * Override this to change CoreContainer initialization
    * @return a CoreContainer to hold this server's cores
    */
-  protected CoreContainer createCoreContainer(Path solrHome, Properties extraProperties) {
-    NodeConfig nodeConfig = loadNodeConfig(solrHome, extraProperties);
+  protected CoreContainer createCoreContainer(Path solrHome, Properties extraProperties) throws Exception {
+    final long startupZkRetryTimeout = Optional.ofNullable(System.getProperty("startupZkRetryTimeout")).map(Long::parseLong).orElse(DEFAULT_ZK_RETRY_TIMEOUT);
+    final long startupZkRetryPeriod = Optional.ofNullable(System.getProperty("startupZkRetryPeriod")).map(Long::parseLong).orElse(DEFAULT_ZK_RETRY_PERIOD);
+    final NodeConfig nodeConfig = RetryUtil.retry(Collections.singleton(SolrException.class),
+        startupZkRetryTimeout,
+        startupZkRetryPeriod,
+        ()->loadNodeConfig(solrHome, extraProperties));
+
     final CoreContainer coreContainer = new CoreContainer(nodeConfig, extraProperties, true);
     coreContainer.load();
     return coreContainer;

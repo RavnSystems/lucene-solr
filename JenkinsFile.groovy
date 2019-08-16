@@ -9,15 +9,19 @@ pipeline {
     stages {
         stage("ivy bootstrap") {
             steps {
-                sh "echo 'Bootstrapping'"
-                sh 'ant ivy-bootstrap'
+                withAnt(installation: 'ant_1.10') {
+                    sh "echo 'Bootstrapping'"
+                    sh 'ant ivy-bootstrap'
+                }
             }
         }
         stage("Build solr") {
             steps {
-                sh "echo 'building solr'"
-                sh "ant clean"
-                sh "ant create-package -f solr/build.xml"
+                withAnt(installation: 'ant_1.10') {
+                    sh "echo 'building solr'"
+                    sh "ant clean"
+                    sh "ant create-package -f solr/build.xml"
+                }
             }
         }
         stage("Archiving packages") {

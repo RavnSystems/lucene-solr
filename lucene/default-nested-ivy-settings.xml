@@ -32,6 +32,7 @@
   <caches lockStrategy="${ivy.lock-strategy}" resolutionCacheDir="${ivy.resolution-cache.dir}" />
 
   <resolvers>
+    <ibiblio name="central" root="https://repo.maven.apache.org/maven2/" m2compatible="true" />
     <ibiblio name="sonatype-releases" root="https://oss.sonatype.org/content/repositories/releases" m2compatible="true" />
     <ibiblio name="maven.restlet.org" root="http://maven.restlet.org" m2compatible="true" />
     <ibiblio name="releases.cloudera.com" root="http://repository.cloudera.com/content/repositories/releases" m2compatible="true" />
@@ -49,6 +50,7 @@
     <chain name="default" returnFirst="true" checkmodified="true" changingPattern=".*SNAPSHOT">
       <resolver ref="local"/>
       <!-- <resolver ref="local-maven-2" /> -->
+      <resolver ref="central" />
       <resolver ref="main"/>
       <resolver ref="maven.restlet.org" />
       <resolver ref="sonatype-releases" />

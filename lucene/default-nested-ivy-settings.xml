@@ -32,6 +32,7 @@
   <caches lockStrategy="${ivy.lock-strategy}" resolutionCacheDir="${ivy.resolution-cache.dir}" />
 
   <resolvers>
+    <ibiblio name="central" root="https://repo.maven.apache.org/maven2/" m2compatible="true" />
     <ibiblio name="sonatype-releases" root="https://oss.sonatype.org/content/repositories/releases" m2compatible="true" />
     <ibiblio name="releases.cloudera.com" root="https://repository.cloudera.com/artifactory/libs-release-local" m2compatible="true" />
 
@@ -45,6 +46,7 @@
     <chain name="default" returnFirst="true" checkmodified="true" changingPattern=".*SNAPSHOT">
       <resolver ref="local"/>
       <!-- <resolver ref="local-maven-2" /> -->
+      <resolver ref="central" />
       <resolver ref="main"/>
       <resolver ref="sonatype-releases" />
       <resolver ref="releases.cloudera.com"/>

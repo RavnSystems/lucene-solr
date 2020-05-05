@@ -1119,16 +1119,15 @@ public final class SolrCore implements SolrInfoBean, SolrMetricProducer, Closeab
   private void initSearcher(SolrCore prev) throws IOException {
     // use the (old) writer to open the first searcher
     RefCounted<IndexWriter> iwRef = null;
-    if (prev != null) {
-      iwRef = prev.getUpdateHandler().getSolrCoreState().getIndexWriter(null);
-      if (iwRef != null) {
-        final IndexWriter iw = iwRef.get();
-        final SolrCore core = this;
-        newReaderCreator = () -> indexReaderFactory.newReader(iw, core);
-      }
-    }
-
     try {
+      if (prev != null) {
+        iwRef = prev.getUpdateHandler().getSolrCoreState().getIndexWriter(null);
+        if (iwRef != null) {
+          final IndexWriter iw = iwRef.get();
+          final SolrCore core = this;
+          newReaderCreator = () -> indexReaderFactory.newReader(iw, core);
+        }
+      }
       getSearcher(false, false, null, true);
     } finally {
       newReaderCreator = null;

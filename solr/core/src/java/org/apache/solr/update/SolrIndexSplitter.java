@@ -241,60 +241,59 @@ public class SolrIndexSplitter {
       boolean success = false;
 
       RefCounted<IndexWriter> iwRef = null;
-      IndexWriter iw;
-      if (cores != null && splitMethod != SplitMethod.LINK) {
-        SolrCore subCore = cores.get(partitionNumber);
-        iwRef = subCore.getUpdateHandler().getSolrCoreState().getIndexWriter(subCore);
-        iw = iwRef.get();
-      } else {
-        if (splitMethod == SplitMethod.LINK) {
-          SolrCore subCore = cores.get(partitionNumber);
-          String path = subCore.getDataDir() + INDEX_PREFIX + timestamp;
-          t = timings.sub("hardLinkCopy");
-          t.resume();
-          // copy by hard-linking
-          Directory splitDir = subCore.getDirectoryFactory().get(path, DirectoryFactory.DirContext.DEFAULT, subCore.getSolrConfig().indexConfig.lockType);
-          // the wrapper doesn't hold any resources itself so it doesn't need closing
-          HardlinkCopyDirectoryWrapper hardLinkedDir = new HardlinkCopyDirectoryWrapper(splitDir);
-          boolean copiedOk = false;
-          try {
-            for (String file : parentDirectory.listAll()) {
-              // we've closed the IndexWriter, so ignore write.lock
-              // its file may be present even when IndexWriter is closed but
-              // we've already checked that the lock is not held by anyone else
-              if (file.equals(IndexWriter.WRITE_LOCK_NAME)) {
-                continue;
-              }
-              hardLinkedDir.copyFrom(parentDirectory, file, file, IOContext.DEFAULT);
-            }
-            copiedOk = true;
-          } finally {
-            if (!copiedOk) {
-              subCore.getDirectoryFactory().doneWithDirectory(splitDir);
-              subCore.getDirectoryFactory().remove(splitDir);
-            }
-          }
-          t.pause();
-          IndexWriterConfig iwConfig = parentConfig.toIndexWriterConfig(subCore);
-          // don't run merges at this time
-          iwConfig.setMergePolicy(NoMergePolicy.INSTANCE);
-          t = timings.sub("createSubIW");
-          t.resume();
-          iw = new SolrIndexWriter(partitionName, splitDir, iwConfig);
-          t.pause();
-        } else {
-          SolrCore core = searcher.getCore();
-          String path = paths.get(partitionNumber);
-          t = timings.sub("createSubIW");
-          t.resume();
-          iw = SolrIndexWriter.create(core, partitionName, path,
-              core.getDirectoryFactory(), true, core.getLatestSchema(),
-              core.getSolrConfig().indexConfig, core.getDeletionPolicy(), core.getCodec());
-          t.pause();
-        }
-      }
-
+      IndexWriter iw = null;
       try {
+        if (cores != null && splitMethod != SplitMethod.LINK) {
+          SolrCore subCore = cores.get(partitionNumber);
+          iwRef = subCore.getUpdateHandler().getSolrCoreState().getIndexWriter(subCore);//todo try finally
+          iw = iwRef.get();
+        } else {
+          if (splitMethod == SplitMethod.LINK) {
+            SolrCore subCore = cores.get(partitionNumber);
+            String path = subCore.getDataDir() + INDEX_PREFIX + timestamp;
+            t = timings.sub("hardLinkCopy");
+            t.resume();
+            // copy by hard-linking
+            Directory splitDir = subCore.getDirectoryFactory().get(path, DirectoryFactory.DirContext.DEFAULT, subCore.getSolrConfig().indexConfig.lockType);
+            // the wrapper doesn't hold any resources itself so it doesn't need closing
+            HardlinkCopyDirectoryWrapper hardLinkedDir = new HardlinkCopyDirectoryWrapper(splitDir);
+            boolean copiedOk = false;
+            try {
+              for (String file : parentDirectory.listAll()) {
+                // we've closed the IndexWriter, so ignore write.lock
+                // its file may be present even when IndexWriter is closed but
+                // we've already checked that the lock is not held by anyone else
+                if (file.equals(IndexWriter.WRITE_LOCK_NAME)) {
+                  continue;
+                }
+                hardLinkedDir.copyFrom(parentDirectory, file, file, IOContext.DEFAULT);
+              }
+              copiedOk = true;
+            } finally {
+              if (!copiedOk) {
+                subCore.getDirectoryFactory().doneWithDirectory(splitDir);
+                subCore.getDirectoryFactory().remove(splitDir);
+              }
+            }
+            t.pause();
+            IndexWriterConfig iwConfig = parentConfig.toIndexWriterConfig(subCore);
+            // don't run merges at this time
+            iwConfig.setMergePolicy(NoMergePolicy.INSTANCE);
+            t = timings.sub("createSubIW");
+            t.resume();
+            iw = new SolrIndexWriter(partitionName, splitDir, iwConfig);
+            t.pause();
+          } else {
+            SolrCore core = searcher.getCore();
+            String path = paths.get(partitionNumber);
+            t = timings.sub("createSubIW");
+            t.resume();
+            iw = SolrIndexWriter.create(core, partitionName, path,
+                core.getDirectoryFactory(), true, core.getLatestSchema(),
+                core.getSolrConfig().indexConfig, core.getDeletionPolicy(), core.getCodec());
+            t.pause();
+          }
+        }
         if (splitMethod == SplitMethod.LINK) {
           t = timings.sub("deleteDocuments");
           t.resume();

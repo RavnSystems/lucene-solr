@@ -127,7 +127,6 @@ public class SegmentsInfoRequestHandler extends RequestHandlerBase {
     SimpleOrderedMap<Object> segmentInfos = new SimpleOrderedMap<>();
 
     SolrCore core = req.getCore();
-    RefCounted<IndexWriter> iwRef = core.getSolrCoreState().getIndexWriter(core);
     SimpleOrderedMap<Object> infosInfo = new SimpleOrderedMap<>();
     Version minVersion = infos.getMinSegmentLuceneVersion();
     if (minVersion != null) {
@@ -148,7 +147,8 @@ public class SegmentsInfoRequestHandler extends RequestHandlerBase {
       coreInfo.add("dataDir", core.getDataDir());
       coreInfo.add("indexDir", core.getIndexDir());
       coreInfo.add("sizeInGB", (double)core.getIndexSize() / GB);
-
+      //decref needs to be called every item to ensure the read lock is released
+      final RefCounted<IndexWriter> iwRef = core.getSolrCoreState().getIndexWriter(core);
       if (iwRef != null) {
         try {
           IndexWriter iw = iwRef.get();

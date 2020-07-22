@@ -48,7 +48,7 @@
       <resolver ref="local"/>
       <!-- <resolver ref="local-maven-2" /> -->
       <resolver ref="central" />
-      <resolver ref="main"/>
+<!--      <resolver ref="main"/>-->
       <resolver ref="maven.restlet.com" />
       <resolver ref="sonatype-releases" />
       <resolver ref="releases.cloudera.com"/>

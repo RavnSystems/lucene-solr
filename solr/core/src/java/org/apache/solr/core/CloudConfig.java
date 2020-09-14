@@ -34,6 +34,8 @@ public class CloudConfig {
 
   private final int leaderVoteWait;
 
+  private boolean leaderFromMajority;
+
   private final int leaderConflictResolveWait;
 
   private final int autoReplicaFailoverWaitAfterExpiration;
@@ -47,7 +49,7 @@ public class CloudConfig {
   private final boolean createCollectionCheckLeaderActive;
 
   CloudConfig(String zkHost, int zkClientTimeout, int hostPort, String hostName, String hostContext, boolean useGenericCoreNames,
-              int leaderVoteWait, int leaderConflictResolveWait, int autoReplicaFailoverWaitAfterExpiration,
+              int leaderVoteWait, boolean leaderFromMajority, int leaderConflictResolveWait, int autoReplicaFailoverWaitAfterExpiration,
               String zkCredentialsProviderClass, String zkACLProviderClass, int createCollectionWaitTimeTillActive,
               boolean createCollectionCheckLeaderActive) {
     this.zkHost = zkHost;
@@ -57,6 +59,7 @@ public class CloudConfig {
     this.hostContext = hostContext;
     this.useGenericCoreNames = useGenericCoreNames;
     this.leaderVoteWait = leaderVoteWait;
+    this.leaderFromMajority = leaderFromMajority;
     this.leaderConflictResolveWait = leaderConflictResolveWait;
     this.autoReplicaFailoverWaitAfterExpiration = autoReplicaFailoverWaitAfterExpiration;
     this.zkCredentialsProviderClass = zkCredentialsProviderClass;
@@ -102,6 +105,10 @@ public class CloudConfig {
     return leaderVoteWait;
   }
 
+  public boolean isLeaderFromMajority(){
+    return leaderFromMajority;
+  }
+
   public int getLeaderConflictResolveWait() {
     return leaderConflictResolveWait;
   }
@@ -144,6 +151,7 @@ public class CloudConfig {
     private String zkACLProviderClass;
     private int createCollectionWaitTimeTillActive = DEFAULT_CREATE_COLLECTION_ACTIVE_WAIT;
     private boolean createCollectionCheckLeaderActive = DEFAULT_CREATE_COLLECTION_CHECK_LEADER_ACTIVE;
+    private boolean leaderFromMajority = false;
 
     public CloudConfigBuilder(String hostName, int hostPort) {
       this(hostName, hostPort, null);
@@ -172,6 +180,11 @@ public class CloudConfig {
 
     public CloudConfigBuilder setLeaderVoteWait(int leaderVoteWait) {
       this.leaderVoteWait = leaderVoteWait;
+      return this;
+    }
+
+    public CloudConfigBuilder setLeaderFromMajority(boolean leaderFromMajority) {
+      this.leaderFromMajority = leaderFromMajority;
       return this;
     }
 
@@ -206,7 +219,7 @@ public class CloudConfig {
     }
 
     public CloudConfig build() {
-      return new CloudConfig(zkHost, zkClientTimeout, hostPort, hostName, hostContext, useGenericCoreNames, leaderVoteWait,
+      return new CloudConfig(zkHost, zkClientTimeout, hostPort, hostName, hostContext, useGenericCoreNames, leaderVoteWait, leaderFromMajority,
           leaderConflictResolveWait, autoReplicaFailoverWaitAfterExpiration, zkCredentialsProviderClass, zkACLProviderClass, createCollectionWaitTimeTillActive,
           createCollectionCheckLeaderActive);
     }

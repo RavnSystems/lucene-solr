@@ -443,6 +443,9 @@ public class SolrXmlConfig {
         case "leaderVoteWait":
           builder.setLeaderVoteWait(parseInt(name, value));
           break;
+        case "leaderFromMajority":
+          builder.setLeaderFromMajority(Boolean.parseBoolean(value));
+          break;
         case "leaderConflictResolveWait":
           builder.setLeaderConflictResolveWait(parseInt(name, value));
           break;

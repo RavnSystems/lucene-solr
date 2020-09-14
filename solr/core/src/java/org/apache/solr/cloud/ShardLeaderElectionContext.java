@@ -111,6 +111,8 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
 
       int leaderVoteWait = cc.getZkController().getLeaderVoteWait();
 
+      final boolean leaderFromMajority = cc.getZkController().isLeaderFromMajority();
+
       log.debug("Running the leader process for shard={} and weAreReplacement={} and leaderVoteWait={}", shardId, weAreReplacement, leaderVoteWait);
       if (zkController.getClusterState().getCollection(collection).getSlice(shardId).getReplicas().size() > 1) {
         // Clear the leader in clusterstate. We only need to worry about this if there is actually more than one replica.
@@ -120,7 +122,7 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
       }
 
       if (!weAreReplacement) {
-        waitForReplicasToComeUp(leaderVoteWait);
+        waitForReplicasToComeUp(leaderVoteWait, leaderFromMajority);
       } else {
         areAllReplicasParticipating();
       }
@@ -381,7 +383,7 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
   }
 
   // returns true if all replicas are found to be up, false if not
-  private boolean waitForReplicasToComeUp(int timeoutms) throws InterruptedException {
+  private boolean waitForReplicasToComeUp(int timeoutms, boolean leaderFromMajority) throws InterruptedException {
     long timeoutAt = System.nanoTime() + TimeUnit.NANOSECONDS.convert(timeoutms, TimeUnit.MILLISECONDS);
     final String shardsElectZkPath = electionPath + LeaderElector.ELECTION_NODE;
 
@@ -405,15 +407,17 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
               "Error checking for the number of election participants", e);
         }
 
-        // on startup and after connection timeout, wait for all known shards
-        if (found >= slices.getReplicas(EnumSet.of(Replica.Type.TLOG, Replica.Type.NRT)).size()) {
-          log.info("Enough replicas found to continue.");
+        // on startup and after connection timeout, wait for all known shards. We need at least 1/2+1 replicas up
+        final int replicaCount = slices.getReplicas(EnumSet.of(Replica.Type.TLOG, Replica.Type.NRT)).size();
+        final int neededReplicas = leaderFromMajority? replicaCount /2+1: replicaCount;
+        if (found >= neededReplicas) {
+          log.info("Enough replicas ({}) found to continue.", found);
           return true;
         } else {
           if (cnt % 40 == 0) {
             if (log.isInfoEnabled()) {
               log.info("Waiting until we see more replicas up for shard {}: total={} found={} timeoute in={}ms"
-                  , shardId, slices.getReplicas(EnumSet.of(Replica.Type.TLOG, Replica.Type.NRT)).size(), found,
+                  , shardId, replicaCount, found,
                   TimeUnit.MILLISECONDS.convert(timeoutAt - System.nanoTime(), TimeUnit.NANOSECONDS));
             }
           }

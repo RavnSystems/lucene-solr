@@ -14,16 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.solr.rest.schema;
-import org.apache.solr.rest.SolrRestletTestBase;
-import org.junit.Test;
+package org.apache.solr.handler.clustering;
 
-public class TestSchemaVersionResource extends SolrRestletTestBase {
-  @Test
-  public void testGetSchemaVersion() throws Exception {
-    assertQ("/schema/version?indent=on&wt=xml",
-            "count(/response/float[@name='version']) = 1",
-            "/response/float[@name='version'][.='1.6']");
+import org.carrot2.clustering.ClusteringAlgorithmProvider;
+
+public class MockClusteringAlgorithmProvider implements ClusteringAlgorithmProvider {
+  @Override
+  public String name() {
+    return MockClusteringAlgorithm.class.getSimpleName();
+  }
+
+  @Override
+  public MockClusteringAlgorithm get() {
+    return new MockClusteringAlgorithm();
   }
 }
-

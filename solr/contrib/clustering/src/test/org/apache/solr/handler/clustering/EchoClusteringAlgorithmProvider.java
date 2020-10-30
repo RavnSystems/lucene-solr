@@ -14,27 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.solr.spelling.suggest.tst;
+package org.apache.solr.handler.clustering;
 
-import org.apache.lucene.search.suggest.Lookup;
-import org.apache.lucene.search.suggest.tst.TSTLookup;
-import org.apache.solr.common.util.NamedList;
-import org.apache.solr.core.SolrCore;
-import org.apache.solr.spelling.suggest.LookupFactory;
+import org.carrot2.clustering.ClusteringAlgorithmProvider;
 
 /**
- * Factory for {@link TSTLookup}
+ * SPI provider of {@link EchoClusteringAlgorithm}.
  */
-public class TSTLookupFactory extends LookupFactory {
-  private static final String FILENAME = "tst.dat";
-
+public class EchoClusteringAlgorithmProvider implements ClusteringAlgorithmProvider {
   @Override
-  public Lookup create(@SuppressWarnings({"rawtypes"})NamedList params, SolrCore core) {
-    return new TSTLookup(getTempDir(), "suggester");
+  public String name() {
+    return EchoClusteringAlgorithm.class.getSimpleName();
   }
 
   @Override
-  public String storeFileName() {
-    return FILENAME;
+  public EchoClusteringAlgorithm get() {
+    return new EchoClusteringAlgorithm();
   }
 }

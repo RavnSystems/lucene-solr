@@ -20,10 +20,10 @@
     <info organisation="org.apache.solr" module="dataimporthandler-extras"/>
 
     <!--
-        NOTE: In order to reduce Jar duplication, the build.xml file for 
-        contrib/dataimporthandler-extras explicitly includes all deps from 
+        NOTE: In order to reduce Jar duplication, the build.xml file for
+        contrib/dataimporthandler-extras explicitly includes all deps from
         contrib/extraction rather then specify them here.
-        
+
         https://issues.apache.org/jira/browse/SOLR-3848
     -->
   <configurations defaultconfmapping="compile->master;test->master">
@@ -33,7 +33,12 @@
   <dependencies>
     <dependency org="javax.activation" name="activation" rev="${/javax.activation/activation}" conf="compile"/>
     <dependency org="com.sun.mail" name="javax.mail" rev="${/com.sun.mail/javax.mail}" conf="compile"/>
-    <dependency org="com.sun.mail" name="gimap" rev="${/com.sun.mail/gimap}" conf="compile"/>  
+    <dependency org="com.sun.mail" name="gimap" rev="${/com.sun.mail/gimap}" conf="compile"/>
+    <dependency org="org.carrot2" name="carrot2-core" rev="${/org.carrot2/carrot2-core}" conf="compile"/>
+
+    <!--
+    NOTE: There are dependencies that are part of core Solr server (HPPC, etc.).
+    -->
 
     <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/>
   </dependencies>

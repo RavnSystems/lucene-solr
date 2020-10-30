@@ -91,11 +91,11 @@ final class EngineContext {
     }
 
     ClassLoader classLoader = getClass().getClassLoader();
-    algorithmProviders =
-        ServiceLoader.load(ClusteringAlgorithmProvider.class, classLoader)
-            .stream()
-            .map(ServiceLoader.Provider::get)
-            .collect(Collectors.toMap(ClusteringAlgorithmProvider::name, e -> e));
+    algorithmProviders = new LinkedHashMap<String, ClusteringAlgorithmProvider>();
+    for (ClusteringAlgorithmProvider p : 
+        ServiceLoader.load(ClusteringAlgorithmProvider.class, classLoader)) {
+      algorithmProviders.put(p.name(),  p);
+    }
 
     // Only load the resources of algorithms we're interested in.
     loader.limitToAlgorithms(
@@ -167,7 +167,7 @@ final class EngineContext {
       ClusteringAlgorithmProvider provider, Collection<LanguageComponents> languages) {
     ClusteringAlgorithm algorithm = provider.get();
     Optional<LanguageComponents> first = languages.stream().filter(algorithm::supports).findFirst();
-    if (first.isEmpty()) {
+    if (!first.isPresent()) {
       log.warn("Algorithm does not support any of the available languages: {}", provider.name());
       return false;
     } else {

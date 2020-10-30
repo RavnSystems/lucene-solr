@@ -86,7 +86,7 @@ public class MockClusteringAlgorithm extends AttrComposite implements Clustering
       throw new AssertionError();
     }
 
-    Supplier<T> docSupplier = new Supplier<>() {
+    Supplier<T> docSupplier = new Supplier<T>() {
       Iterator<T> i = documents.iterator();
 
       @Override

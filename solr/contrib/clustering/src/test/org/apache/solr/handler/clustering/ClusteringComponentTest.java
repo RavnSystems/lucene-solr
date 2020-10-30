@@ -32,12 +32,11 @@ import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.ResultContext;
 import org.apache.solr.response.SolrQueryResponse;
 import org.carrot2.clustering.Cluster;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -149,9 +148,8 @@ public class ClusteringComponentTest extends SolrTestCaseJ4 {
       List<String> labels2 = full.get(i).getLabels();
       assertEquals(labels1.size(), labels2.size());
       for (int j = 0; j < labels1.size(); j++) {
-        MatcherAssert.assertThat("Summary shorter than original document?",
-            labels1.get(j).length(),
-            Matchers.lessThanOrEqualTo(labels2.get(j).length()));
+        Assert.assertTrue("Summary shorter than original document?",
+            labels1.get(j).length() <= labels2.get(j).length());
       }
     }
   }
@@ -186,9 +184,8 @@ public class ClusteringComponentTest extends SolrTestCaseJ4 {
       List<String> longLabels = longSummaries.get(i).getLabels();
       assertEquals(shortLabels.size(), longLabels.size());
       for (int j = 0; j < shortLabels.size(); j++) {
-        MatcherAssert.assertThat("Shorter summary is longer than longer summary?",
-            shortLabels.get(j).length(),
-            Matchers.lessThanOrEqualTo(longLabels.get(j).length()));
+        Assert.assertTrue("Shorter summary is longer than longer summary?",
+            shortLabels.get(j).length() <= longLabels.get(j).length());
       }
     }
   }
@@ -225,7 +222,7 @@ public class ClusteringComponentTest extends SolrTestCaseJ4 {
     });
 
     clusters.forEach(c -> {
-      MatcherAssert.assertThat(c.getLabels(), Matchers.hasSize(3));
+      Assert.assertTrue(c.getLabels().size() == 3);
     });
   }
 
@@ -292,8 +289,15 @@ public class ClusteringComponentTest extends SolrTestCaseJ4 {
         throw new AssertionError("Test resource not found: " + resourceName + " (class-relative to " +
             clazz.getName() + ")");
       }
+      
+      byte [] buf = new byte [1024];
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      int len;
+      while ((len = is.read(buf)) >= 0) {
+        baos.write(buf, 0, len);
+      }
 
-      expected = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+      expected = new String(baos.toByteArray(), StandardCharsets.UTF_8);
     }
     return expected;
   }

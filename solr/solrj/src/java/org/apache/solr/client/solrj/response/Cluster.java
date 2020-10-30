@@ -40,10 +40,10 @@ public class Cluster {
    * @param docIds   the list of document Ids belonging to the cluster
    */
   public Cluster(List<String> labels, double score, List<String> docIds, List<Cluster> subclusters, boolean otherTopics) {
-    this.labels = Objects.requireNonNullElse(labels, Collections.emptyList());
+    this.labels = (labels != null ? labels : Collections.emptyList());
     this.score = score;
-    this.docIds = Objects.requireNonNullElse(docIds, Collections.emptyList());
-    this.subclusters = Objects.requireNonNullElse(subclusters, Collections.emptyList());
+    this.docIds = (docIds != null ? docIds : Collections.emptyList());
+    this.subclusters = (subclusters != null ? subclusters : Collections.emptyList());
     this.otherTopics = otherTopics;
   }
 

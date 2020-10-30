@@ -26,6 +26,7 @@ import org.carrot2.language.LexicalData;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -45,7 +46,7 @@ class ResourceCheckAlgorithm extends AttrComposite implements ClusteringAlgorith
 
   @Override
   public Set<Class<?>> requiredLanguageComponents() {
-    return Set.of(LexicalData.class);
+    return Collections.singleton(LexicalData.class);
   }
 
   @Override

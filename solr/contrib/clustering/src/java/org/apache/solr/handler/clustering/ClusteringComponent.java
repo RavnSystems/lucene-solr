@@ -368,7 +368,7 @@ public class ClusteringComponent extends SearchComponent implements SolrCoreAwar
     Query query = responseBuilder.getQuery();
     SolrIndexSearcher indexSearcher = responseBuilder.req.getSearcher();
     SolrCore core = solrRequest.getCore();
-    String[] fieldsToCluster = requestParameters.fields().toArray(String[]::new);
+    String[] fieldsToCluster = requestParameters.fields().toArray(new String[0]);
     IndexSchema schema = indexSearcher.getSchema();
 
     boolean preferQueryContext = requestParameters.preferQueryContext();

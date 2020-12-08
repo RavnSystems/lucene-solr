@@ -29,6 +29,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -89,7 +90,7 @@ public class AtomicUpdateDocumentMerger {
     
     return false;
   }
-  
+
   /**
    * Merges the fromDoc into the toDoc using the atomic update syntax.
    * 
@@ -124,6 +125,9 @@ public class AtomicUpdateDocumentMerger {
             case "add-distinct":
               doAddDistinct(toDoc, sif, fieldVal);
               break;
+            case "merge":
+              doAddMerge(toDoc, sif, fieldVal);
+              break;
             default:
               Object id = toDoc.containsKey(idField.getName())? toDoc.getFieldValue(idField.getName()):
                   fromDoc.getFieldValue(idField.getName());
@@ -147,6 +151,46 @@ public class AtomicUpdateDocumentMerger {
     
     return toDoc;
   }
+
+  private void doAddMerge(SolrInputDocument toDoc, SolrInputField sif, Object fieldVal) {
+    final String name = sif.getName();
+    SolrInputField existingField = toDoc.get(sif.getName());
+    // throws exception if field doesn't exist
+    SchemaField sf = schema.getField(name);
+
+    if (existingField == null) {
+      doAdd(toDoc, sif, fieldVal);
+      return;
+    }
+
+    Map<String, SolrInputDocument> originalItemsById = existingField.getValues().stream()
+        .filter(SolrInputDocument.class::isInstance)
+        .map(SolrInputDocument.class::cast)
+        .filter(doc -> doc.containsKey("id"))
+        .collect(Collectors.toMap(doc -> doc.get("id").getValue().toString(), doc -> doc));
+
+    Object toBeAdded = getNativeFieldValue(name, fieldVal);
+
+    if (toBeAdded instanceof Collection) {
+      ((Collection<?>) toBeAdded).forEach(doc -> {
+        doAddMergeSingleItem(toDoc, name, doc, originalItemsById);
+      });
+    } else {
+      doAddMergeSingleItem(toDoc, name, toBeAdded, originalItemsById);
+    }
+  }
+
+  private void doAddMergeSingleItem(SolrInputDocument toDoc, String name, Object toBeAdded, Map<String, SolrInputDocument> originalItemsById) {
+    if (toBeAdded instanceof SolrInputDocument &&
+        ((SolrInputDocument) toBeAdded).containsKey("id")) {
+      // Single matching item to replace based on id match
+      originalItemsById.put(((SolrInputDocument) toBeAdded).get("id").getValue().toString(), (SolrInputDocument) toBeAdded);
+      toDoc.setField(name, originalItemsById.values());
+    } else {
+      toDoc.addField(name, toBeAdded);
+    }
+  }
+
 
   /**
    * Given a schema field, return whether or not such a field is supported for an in-place update.

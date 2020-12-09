@@ -21,7 +21,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -70,6 +72,77 @@ public class NestedAtomicUpdateTest extends SolrTestCaseJ4 {
     assertDocContainsSubset(addedDoc, dummyBlock);
     assertDocContainsSubset(newChildDoc, (SolrInputDocument) ((List) dummyBlock.getFieldValues("child")).get(1));
     assertEquals(dummyBlock.getFieldValue("id"), dummyBlock.getFieldValue("id"));
+  }
+
+  @Test
+  public void testMergeChildDocsWithSameId() throws Exception {
+    SolrInputDocument existingChild = sdoc("id", "2", "cat_ss", "child");
+    SolrInputDocument existingDoc = sdoc("id", "1",
+        "cat_ss", new ArrayList<>(Arrays.asList("aaa", "ccc")),
+        "_root_", "1", "child", new ArrayList<>(sdocs(existingChild)));
+
+    SolrInputDocument updatedChildDoc = sdoc("id", "2", "cat_ss", "updated child");
+    SolrInputDocument updateDoc = sdoc("id", "1",
+        "cat_ss", Collections.singletonMap("add", "bbb"), // add value to collection on parent
+        "child", Collections.singletonMap("merge", sdocs(updatedChildDoc))); // child with same id and updated "cat_ss" field
+
+
+    SolrInputDocument preMergeDoc = new SolrInputDocument(existingDoc);
+    AtomicUpdateDocumentMerger docMerger = new AtomicUpdateDocumentMerger(req());
+    docMerger.merge(updateDoc, existingDoc);
+    assertEquals("merged document should have the same id", preMergeDoc.getFieldValue("id"), existingDoc.getFieldValue("id"));
+    assertDocContainsSubset(preMergeDoc, existingDoc);
+    assertDocContainsSubset(updateDoc, existingDoc);
+    assertEquals(1, existingDoc.getFieldValues("child").size());
+    assertDocContainsSubset(updatedChildDoc, ((SolrInputDocument) existingDoc.getFieldValues("child").toArray()[0]));
+  }
+
+  @Test
+  public void testMergeChildDocsWithSameAndNestedSet() throws Exception {
+    SolrInputDocument existingChild = sdoc("id", "2", "cat_ss", "child");
+    SolrInputDocument existingDoc = sdoc("id", "1",
+        "cat_ss", new ArrayList<>(Arrays.asList("aaa", "ccc")),
+        "_root_", "1", "child", new ArrayList<>(sdocs(existingChild)));
+
+
+    SolrInputDocument updatedChildDoc = sdoc("id", "2", "cat_ss", Collections.singletonMap("set", "updated child"));
+    SolrInputDocument updateDoc = sdoc("id", "1",
+        "cat_ss", Collections.singletonMap("add", "bbb"), // add value to collection on parent
+        "child", Collections.singletonMap("merge", sdocs(updatedChildDoc))); // child with same id and nested set on "cat_ss" field
+
+
+    SolrInputDocument preMergeDoc = new SolrInputDocument(existingDoc);
+    AtomicUpdateDocumentMerger docMerger = new AtomicUpdateDocumentMerger(req());
+    docMerger.merge(updateDoc, existingDoc);
+    assertEquals("merged document should have the same id", preMergeDoc.getFieldValue("id"), existingDoc.getFieldValue("id"));
+    assertDocContainsSubset(preMergeDoc, existingDoc);
+    assertDocContainsSubset(updateDoc, existingDoc);
+    assertEquals(1, existingDoc.getFieldValues("child").size());
+    assertDocContainsSubset(sdoc("id", "2", "cat_ss", "updated child"), ((SolrInputDocument) existingDoc.getFieldValues("child").toArray()[0]));
+  }
+
+  @Test
+  public void testMergeChildDocsWithMultipleChildDocs() throws Exception {
+    SolrInputDocument existingChild = sdoc("id", "2", "cat_ss", "child");
+    SolrInputDocument nonMatchingExistingChild = sdoc("id", "3", "cat_ss", "other");
+    SolrInputDocument existingDoc = sdoc("id", "1",
+        "cat_ss", new ArrayList<>(Arrays.asList("aaa", "ccc")),
+        "_root_", "1", "child", new ArrayList<>(sdocs(existingChild, nonMatchingExistingChild)));
+
+    SolrInputDocument updatedChildDoc = sdoc("id", "2", "cat_ss", "updated child");
+    SolrInputDocument updateDoc = sdoc("id", "1",
+        "cat_ss", Collections.singletonMap("add", "bbb"), // add value to collection on parent
+        "child", Collections.singletonMap("merge", sdocs(updatedChildDoc))); // child with same id and updated "cat_ss" field
+
+
+    SolrInputDocument preMergeDoc = new SolrInputDocument(existingDoc);
+    AtomicUpdateDocumentMerger docMerger = new AtomicUpdateDocumentMerger(req());
+    docMerger.merge(updateDoc, existingDoc);
+    assertEquals("merged document should have the same id", preMergeDoc.getFieldValue("id"), existingDoc.getFieldValue("id"));
+    assertDocContainsSubset(preMergeDoc, existingDoc);
+    assertDocContainsSubset(updateDoc, existingDoc);
+    assertEquals(2, existingDoc.getFieldValues("child").size());
+    assertDocContainsSubset(updatedChildDoc, ((SolrInputDocument) existingDoc.getFieldValues("child").toArray()[0]));
   }
 
   @Test

@@ -81,16 +81,19 @@ public class AtomicUpdateDocumentMerger {
    */
   public static boolean isAtomicUpdate(final AddUpdateCommand cmd) {
     SolrInputDocument sdoc = cmd.getSolrInputDocument();
+    return isAtomicUpdate(sdoc);
+  }
+
+  private static boolean isAtomicUpdate(SolrInputDocument sdoc) {
     for (SolrInputField sif : sdoc.values()) {
       Object val = sif.getValue();
       if (val instanceof Map && !(val instanceof SolrDocumentBase)) {
         return true;
       }
     }
-    
+
     return false;
   }
-
   /**
    * Merges the fromDoc into the toDoc using the atomic update syntax.
    * 
@@ -155,8 +158,6 @@ public class AtomicUpdateDocumentMerger {
   private void doAddMerge(SolrInputDocument toDoc, SolrInputField sif, Object fieldVal) {
     final String name = sif.getName();
     SolrInputField existingField = toDoc.get(sif.getName());
-    // throws exception if field doesn't exist
-    SchemaField sf = schema.getField(name);
 
     if (existingField == null) {
       doAdd(toDoc, sif, fieldVal);
@@ -181,13 +182,18 @@ public class AtomicUpdateDocumentMerger {
   }
 
   private void doAddMergeSingleItem(SolrInputDocument toDoc, String name, Object toBeAdded, Map<String, SolrInputDocument> originalItemsById) {
-    if (toBeAdded instanceof SolrInputDocument &&
-        ((SolrInputDocument) toBeAdded).containsKey("id")) {
-      // Single matching item to replace based on id match
-      originalItemsById.put(((SolrInputDocument) toBeAdded).get("id").getValue().toString(), (SolrInputDocument) toBeAdded);
+    if (toBeAdded instanceof SolrInputDocument) {
+      // Handle nested atomic updates
+      if (isAtomicUpdate((SolrInputDocument) toBeAdded)) {
+        SolrInputDocument original = originalItemsById.getOrDefault(((SolrInputDocument) toBeAdded).get("id").getValue().toString(), new SolrInputDocument());
+        SolrInputDocument merged = merge((SolrInputDocument) toBeAdded, original);
+        originalItemsById.put(((SolrInputDocument) toBeAdded).get("id").getValue().toString(), merged);
+      } else {
+        originalItemsById.put(((SolrInputDocument) toBeAdded).get("id").getValue().toString(), (SolrInputDocument) toBeAdded);
+      }
       toDoc.setField(name, originalItemsById.values());
     } else {
-      toDoc.addField(name, toBeAdded);
+      throw new SolrException(ErrorCode.BAD_REQUEST, "Invalid update: " + toBeAdded + "should be a SolrInputDocument");
     }
   }
 

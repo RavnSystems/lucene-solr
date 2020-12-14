@@ -170,6 +170,10 @@ public class AtomicUpdateDocumentMerger {
         .filter(doc -> doc.containsKey("id"))
         .collect(Collectors.toMap(doc -> doc.get("id").getValue().toString(), doc -> doc));
 
+    if(existingField.getValues().size() != originalItemsById.size()) {
+      throw new SolrException(ErrorCode.INVALID_STATE, "Merge can not be called on field: " + existingField.getName() + " since it contains values which are either not SolrInputDocument's or do not have an id property");
+    }
+
     Object toBeAdded = getNativeFieldValue(name, fieldVal);
 
     if (toBeAdded instanceof Collection) {
@@ -193,7 +197,7 @@ public class AtomicUpdateDocumentMerger {
       }
       toDoc.setField(name, originalItemsById.values());
     } else {
-      throw new SolrException(ErrorCode.BAD_REQUEST, "Invalid update: " + toBeAdded + "should be a SolrInputDocument");
+      throw new SolrException(ErrorCode.BAD_REQUEST, "Invalid merge: " + toBeAdded + " should be a SolrInputDocument");
     }
   }
 

@@ -27,8 +27,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.lucene.geo.Polygon;
 import org.apache.lucene.util.BytesRef;
 import org.apache.solr.SolrTestCaseJ4;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrInputField;
 import org.apache.solr.core.SolrCore;
@@ -143,6 +145,44 @@ public class NestedAtomicUpdateTest extends SolrTestCaseJ4 {
     assertDocContainsSubset(updateDoc, existingDoc);
     assertEquals(2, existingDoc.getFieldValues("child").size());
     assertDocContainsSubset(updatedChildDoc, ((SolrInputDocument) existingDoc.getFieldValues("child").toArray()[0]));
+  }
+
+  @Test
+  public void testMergeChildDocWithNonSolrInputDocException() throws Exception {
+    SolrInputDocument existingDoc = sdoc("id", "1",
+        "cat_ss", new ArrayList<>(Arrays.asList("aaa", "ccc")),
+        "_root_", "1", "child", Map.of("cat_ss", "child"));
+
+    SolrInputDocument updatedChildDoc = sdoc("cat_ss", "updated child");
+    SolrInputDocument updateDoc = sdoc("id", "1",
+        "cat_ss", Collections.singletonMap("add", "bbb"), // add value to collection on parent
+        "child", Collections.singletonMap("merge", sdocs(updatedChildDoc))); // child with same id and updated "cat_ss" field
+
+    AtomicUpdateDocumentMerger docMerger = new AtomicUpdateDocumentMerger(req());
+
+    SolrException expected = expectThrows(SolrException.class, () -> {
+      docMerger.merge(updateDoc, existingDoc);
+    });
+    assertTrue(expected.getMessage().equals("Merge can not be called on field: child since it contains values which are either not SolrInputDocument's or do not have an id property"));
+  }
+
+  @Test
+  public void testMergeNonSolrInputDocException() throws Exception {
+    SolrInputDocument existingChild = sdoc("id", "2", "cat_ss", "child");
+    SolrInputDocument existingDoc = sdoc("id", "1",
+        "cat_ss", new ArrayList<>(Arrays.asList("aaa", "ccc")),
+        "_root_", "1", "child_ss", new ArrayList<>(sdocs(existingChild)));
+
+    SolrInputDocument updateDoc = sdoc("id", "1",
+        "cat_ss", Collections.singletonMap("add", "bbb"), // add value to collection on parent
+        "child_ss", Collections.singletonMap("merge", Map.of("cat_ss", "updated child"))); // Not a SolrInputDocument
+
+    AtomicUpdateDocumentMerger docMerger = new AtomicUpdateDocumentMerger(req());
+
+    SolrException expected = expectThrows(SolrException.class, () -> {
+      docMerger.merge(updateDoc, existingDoc);
+    });
+    assertTrue(expected.getMessage().equals("Invalid merge: {cat_ss=updated child} should be a SolrInputDocument"));
   }
 
   @Test

@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -84,13 +85,17 @@ public class AtomicUpdateDocumentMerger {
    */
   public static boolean isAtomicUpdate(final AddUpdateCommand cmd) {
     SolrInputDocument sdoc = cmd.getSolrInputDocument();
+    return isAtomicUpdate(sdoc);
+  }
+
+  private static boolean isAtomicUpdate(SolrInputDocument sdoc) {
     for (SolrInputField sif : sdoc.values()) {
       Object val = sif.getValue();
       if (val instanceof Map && !(val instanceof SolrDocumentBase)) {
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -173,6 +178,9 @@ public class AtomicUpdateDocumentMerger {
             case "add-distinct":
               doAddDistinct(toDoc, sif, fieldVal);
               break;
+            case "merge":
+              doAddMerge(toDoc, sif, fieldVal);
+              break;
             default:
               throw new SolrException(ErrorCode.BAD_REQUEST,
                   "Error:" + getID(toDoc, schema) + " Unknown operation for the an atomic update: " + key);
@@ -200,6 +208,53 @@ public class AtomicUpdateDocumentMerger {
     }
     return id;
   }
+
+  private void doAddMerge(SolrInputDocument toDoc, SolrInputField sif, Object fieldVal) {
+    final String name = sif.getName();
+    SolrInputField existingField = toDoc.get(sif.getName());
+
+    if (existingField == null) {
+      doAdd(toDoc, sif, fieldVal);
+      return;
+    }
+
+    Map<String, SolrInputDocument> originalItemsById = existingField.getValues().stream()
+        .filter(SolrInputDocument.class::isInstance)
+        .map(SolrInputDocument.class::cast)
+        .filter(doc -> doc.containsKey("id"))
+        .collect(Collectors.toMap(doc -> doc.get("id").getValue().toString(), doc -> doc));
+
+    if(existingField.getValues().size() != originalItemsById.size()) {
+      throw new SolrException(ErrorCode.INVALID_STATE, "Merge can not be called on field: " + existingField.getName() + " since it contains values which are either not SolrInputDocument's or do not have an id property");
+    }
+
+    Object toBeAdded = getNativeFieldValue(name, fieldVal);
+
+    if (toBeAdded instanceof Collection) {
+      ((Collection<?>) toBeAdded).forEach(doc -> {
+        doAddMergeSingleItem(toDoc, name, doc, originalItemsById);
+      });
+    } else {
+      doAddMergeSingleItem(toDoc, name, toBeAdded, originalItemsById);
+    }
+  }
+
+  private void doAddMergeSingleItem(SolrInputDocument toDoc, String name, Object toBeAdded, Map<String, SolrInputDocument> originalItemsById) {
+    if (toBeAdded instanceof SolrInputDocument) {
+      // Handle nested atomic updates
+      if (isAtomicUpdate((SolrInputDocument) toBeAdded)) {
+        SolrInputDocument original = originalItemsById.getOrDefault(((SolrInputDocument) toBeAdded).get("id").getValue().toString(), new SolrInputDocument());
+        SolrInputDocument merged = merge((SolrInputDocument) toBeAdded, original);
+        originalItemsById.put(((SolrInputDocument) toBeAdded).get("id").getValue().toString(), merged);
+      } else {
+        originalItemsById.put(((SolrInputDocument) toBeAdded).get("id").getValue().toString(), (SolrInputDocument) toBeAdded);
+      }
+      toDoc.setField(name, originalItemsById.values());
+    } else {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "Invalid merge: " + toBeAdded + " should be a SolrInputDocument");
+    }
+  }
+
 
   /**
    * Given a schema field, return whether or not such a field is supported for an in-place update.

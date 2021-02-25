@@ -10,7 +10,18 @@ Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this r
 
 Bug Fixes
 ---------------------
-(No changes)
+* SOLR-15078: Fix ExpandComponent behavior when expanding on numeric fields to differentiate '0' group from null group (hossman)
+
+* SOLR-15149: Better exception handling for LTR model creation errors (Alessandro Benedetti, Christine Poerschke)
+
+* SOLR-13034: Partial (AKA Atomic) updates could encounter "LazyField" instances in the document
+  cache and not know hot to deal with them when writing the updated doc to the update log.
+  (David Smiley)
+
+
+Other Changes
+---------------------
+* SOLR-15118: Deprecate CollectionAdminRequest.getV2Request(). (Jason Gerlowski)
 
 ==================  8.8.1 ==================
 

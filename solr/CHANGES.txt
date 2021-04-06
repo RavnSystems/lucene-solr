@@ -23,6 +23,8 @@ Other Changes
 ---------------------
 * SOLR-15118: Deprecate CollectionAdminRequest.getV2Request(). (Jason Gerlowski)
 
+* SOLR-15217: Use shardsWhitelist in ReplicationHandler. (Bruno Roustant)
+
 ==================  8.8.1 ==================
 
 Bug Fixes

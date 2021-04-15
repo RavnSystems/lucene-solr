@@ -244,7 +244,7 @@ public class AtomicUpdateDocumentMerger {
       // Handle nested atomic updates
       if (isAtomicUpdate((SolrInputDocument) toBeAdded)) {
         SolrInputDocument original = originalItemsById.getOrDefault(((SolrInputDocument) toBeAdded).get("id").getValue().toString(), new SolrInputDocument());
-        SolrInputDocument merged = merge((SolrInputDocument) toBeAdded, original);
+        SolrInputDocument merged = mergeDocHavingSameId((SolrInputDocument) toBeAdded, original);
         originalItemsById.put(((SolrInputDocument) toBeAdded).get("id").getValue().toString(), merged);
       } else {
         originalItemsById.put(((SolrInputDocument) toBeAdded).get("id").getValue().toString(), (SolrInputDocument) toBeAdded);
